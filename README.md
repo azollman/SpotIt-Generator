@@ -45,7 +45,7 @@ cairosvg requires the GTK3/Cairo runtime. If you only have PNG symbols you can s
 python generate_test_images.py --output ./test_symbols
 
 # 2. Generate the deck
-python spotit_generator.py ./test_symbols --output ./output
+python generator.py ./test_symbols --output ./output
 ```
 
 Output lands in `./output/`.
@@ -55,7 +55,7 @@ Output lands in `./output/`.
 ## Usage
 
 ```
-python spotit_generator.py <image_folder> [options]
+python generator.py <image_folder> [options]
 ```
 
 ### Arguments
@@ -74,13 +74,13 @@ python spotit_generator.py <image_folder> [options]
 
 ```bash
 # Standard deck from your own symbols
-python spotit_generator.py ./my_symbols/
+python generator.py ./my_symbols/
 
 # Smaller, faster test run
-python spotit_generator.py ./my_symbols/ --card-diameter-inches 2.5 --dpi 150 --pack-iterations 400
+python generator.py ./my_symbols/ --card-diameter-inches 2.5 --dpi 150 --pack-iterations 400
 
 # Reproducible deck with a specific seed
-python spotit_generator.py ./my_symbols/ --seed 1234 --output ./deck_1234
+python generator.py ./my_symbols/ --seed 1234 --output ./deck_1234
 ```
 
 ---
