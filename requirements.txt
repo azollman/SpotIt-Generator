@@ -1,0 +1,4 @@
+Pillow>=9.0.0
+cairosvg>=2.5.2
+reportlab>=3.6.13
+numpy>=1.23.0
