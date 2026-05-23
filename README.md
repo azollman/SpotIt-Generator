@@ -11,7 +11,7 @@ A Python script that generates a complete [Spot It](https://www.asmodee.us/en/ga
 Given 57 images (PNG or SVG), the generator produces:
 
 - **55 cards** (`card_001.png` – `card_055.png`) — every pair of cards shares exactly one symbol, the defining property of the game
-- **`spotit_deck.pdf`** — print-ready US Letter sheets with crop marks, dynamically laid out based on card size
+- **`deck.pdf`** — print-ready US Letter sheets with crop marks, dynamically laid out based on card size
 - **`verify.txt`** — checks all 1,485 card pairs and confirms the one-shared-symbol property holds
 
 The mathematical foundation is the **order-7 finite projective plane PG(2,7)**, which guarantees the shared-symbol property by construction.

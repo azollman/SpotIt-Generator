@@ -361,7 +361,7 @@ def save_pdf(cards: list, output_dir: Path,
     x0 = (page_w - grid_w) / 2
     y0 = (page_h - grid_h) / 2
 
-    pdf_path = str(output_dir / "spotit_deck.pdf")
+    pdf_path = str(output_dir / "deck.pdf")
     c = rl_canvas.Canvas(pdf_path, pagesize=letter)
 
     def _crop_marks(card_x, card_y):
@@ -400,7 +400,7 @@ def save_pdf(cards: list, output_dir: Path,
             c.showPage()
 
     c.save()
-    print(f"  Saved spotit_deck.pdf  ({cols}×{rows} grid, {cols * rows} cards/page)")
+    print(f"  Saved deck.pdf  ({cols}×{rows} grid, {cols * rows} cards/page)")
 
 
 def save_verify(deck: list, output_dir: Path):
