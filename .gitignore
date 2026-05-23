@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+env/
+
+# Generated outputs (run results, test artifacts)
+output*/
+starwars*/
+test_symbols/
+test_back.png
+*.pdf
+verify.txt
+
+# IDE / OS
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Claude memory
+.claude/

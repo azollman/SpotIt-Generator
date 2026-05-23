@@ -8,7 +8,7 @@ A Python script that generates a complete [Spot It](https://www.asmodee.us/en/ga
 
 ## What it does
 
-Given 57 images (PNG or SVG), the generator produces:
+Given 57 images (PNG, JPG, or SVG), the generator produces:
 
 - **55 cards** (`card_001.png` – `card_055.png`) — every pair of cards shares exactly one symbol, the defining property of the game
 - **`deck.pdf`** — print-ready US Letter sheets with crop marks, dynamically laid out based on card size
@@ -62,13 +62,14 @@ python generator.py <image_folder> [options]
 
 | Argument | Default | Description |
 |---|---|---|
-| `image_folder` | *(required)* | Path to a folder containing **exactly 57** PNG or SVG files |
+| `image_folder` | *(required)* | Path to a folder containing **exactly 57** PNG, JPG, or SVG files |
 | `--output` | `./output` | Directory where output files are written |
 | `--seed` | `42` | Random seed — fix this to reproduce the same deck |
 | `--card-diameter-inches` | `3.46` | Physical card diameter (3.46" is standard Spot It size) |
 | `--dpi` | `300` | Resolution for rasterization and PDF |
 | `--card-size` | `diameter × dpi` | Override pixel diameter of each card |
 | `--pack-iterations` | `800` | Force-simulation iterations for circle packing per card |
+| `--back-image` | *(none)* | Path to an image file to print on card backs (enables duplex PDF) |
 
 ### Examples
 
@@ -81,14 +82,30 @@ python generator.py ./my_symbols/ --card-diameter-inches 2.5 --dpi 150 --pack-it
 
 # Reproducible deck with a specific seed
 python generator.py ./my_symbols/ --seed 1234 --output ./deck_1234
+
+# Duplex-ready deck with a card back logo
+python generator.py ./my_symbols/ --back-image ./my_logo.png --output ./deck_duplex
 ```
+
+---
+
+## Duplex (double-sided) printing
+
+Pass `--back-image <file>` to produce a duplex-ready PDF. The generator interleaves back pages into the output:
+
+- **Odd pages** — card fronts, laid out in a grid
+- **Even pages** — your back image tiled at the exact same grid positions
+
+Print with your printer's **duplex / two-sided** setting enabled. Because every card back uses the same image, the layout is correct regardless of whether your printer flips on the long or short edge.
+
+The back image is scaled to match the card diameter automatically if it is a different size.
 
 ---
 
 ## Preparing your symbols
 
-- Provide **exactly 57 image files** (PNG and/or SVG) in a single flat folder
-- **PNG:** use a transparent alpha channel, or a pure white background — the generator detects which and masks accordingly
+- Provide **exactly 57 image files** (PNG, JPG, and/or SVG) in a single flat folder
+- **PNG / JPG:** transparent alpha channel or pure white background — the generator detects which and masks accordingly
 - **SVG:** rasterized automatically at 512×512 before processing
 - The generator computes a tight bounding box per symbol so blank canvas space doesn't eat into the allocated circle area
 - Symbol images can be any size or aspect ratio; they are scaled to fit their allocated circle on the card
@@ -120,11 +137,16 @@ Individual PNGs are saved, a multi-page PDF is assembled with ReportLab (grid si
 
 ## Test image generator
 
-`generate_test_images.py` creates 57 numbered PNGs (1–57) in random vivid colors — useful for verifying layout and packing before committing to real artwork.
+`generate_test_images.py` creates 57 numbered PNGs (1–57) in random vivid colors plus a `test_back.png` card-back image — useful for verifying layout, packing, and duplex output before committing to real artwork.
 
 ```bash
 python generate_test_images.py [--output ./test_symbols] [--seed 0] [--size 256]
+
+# Then test duplex generation end-to-end:
+python generator.py ./test_symbols --back-image ./test_back.png --output ./test_output
 ```
+
+`test_back.png` is written alongside (not inside) the symbols folder so it doesn't affect the 57-file count.
 
 ---
 

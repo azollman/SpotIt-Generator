@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
 """
-generate_test_images.py – Create 57 numbered test PNGs for spotit_generator.py.
-
-Each image is a number (1–57) rendered in a random color on a transparent
-background, ready to drop into spotit_generator.py as symbol images.
+generate_test_images.py – Create 57 numbered test PNGs for generator.py,
+plus a test card-back image usable with --back-image.
 
 Usage:
     python generate_test_images.py [--output ./test_symbols] [--seed 0]
@@ -92,6 +90,59 @@ def make_number_image(number: int, color: tuple, size: int) -> Image.Image:
     return img
 
 
+def make_back_image(size: int) -> Image.Image:
+    """Generate a simple card-back test image: dark circle with a star pattern."""
+    img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(img)
+
+    cx, cy, r = size / 2, size / 2, size / 2 - 4
+    # Background circle
+    draw.ellipse([cx - r, cy - r, cx + r, cy + r], fill=(20, 20, 60, 255))
+
+    # Decorative ring
+    ring_r = r * 0.88
+    draw.ellipse(
+        [cx - ring_r, cy - ring_r, cx + ring_r, cy + ring_r],
+        outline=(200, 180, 0, 255), width=max(2, size // 80),
+    )
+
+    # Eight-pointed star in the centre
+    import math
+    star_pts = []
+    outer, inner = r * 0.42, r * 0.18
+    for i in range(16):
+        angle = math.pi * i / 8 - math.pi / 2
+        radius = outer if i % 2 == 0 else inner
+        star_pts.append((cx + radius * math.cos(angle),
+                         cy + radius * math.sin(angle)))
+    draw.polygon(star_pts, fill=(200, 180, 0, 255))
+
+    # Small "BACK" label near the bottom
+    label = "TEST BACK"
+    font_size = max(12, size // 16)
+    font = None
+    for attempt in range(6):
+        for name in ("arial.ttf", "DejaVuSans-Bold.ttf",
+                     "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"):
+            try:
+                font = ImageFont.truetype(name, font_size)
+                break
+            except OSError:
+                pass
+        if font:
+            break
+        font_size = int(font_size * 0.85)
+    if font is None:
+        font = ImageFont.load_default()
+
+    bbox = draw.textbbox((0, 0), label, font=font)
+    tw = bbox[2] - bbox[0]
+    draw.text((cx - tw / 2 - bbox[0], cy + r * 0.62 - bbox[1]),
+              label, font=font, fill=(200, 180, 0, 220))
+
+    return img
+
+
 def main():
     args = parse_args()
     output_dir = Path(args.output)
@@ -106,8 +157,15 @@ def main():
         img.save(path, "PNG")
         print(f"  {path.name}  color=rgb{color}")
 
-    print(f"\nDone. 57 test images saved to {output_dir}/")
-    print(f"Run:  python spotit_generator.py {output_dir}/")
+    # Save alongside (not inside) the symbols folder so the generator's
+    # "exactly 57 files" check isn't tripped.
+    back_path = output_dir.parent / "test_back.png"
+    make_back_image(args.size).save(back_path, "PNG")
+    print(f"  {back_path}  (card back test image)")
+
+    print(f"\nDone. 57 symbols + 1 back image saved.")
+    print(f"Run:  python generator.py {output_dir}/")
+    print(f"      python generator.py {output_dir}/ --back-image {back_path}")
 
 
 if __name__ == "__main__":

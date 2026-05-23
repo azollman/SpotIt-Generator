@@ -40,6 +40,8 @@ def parse_args():
                    help="Random seed for reproducibility (default: 42)")
     p.add_argument("--pack-iterations", type=int, default=800,
                    help="Circle packing iterations per card (default: 800)")
+    p.add_argument("--back-image", default=None, metavar="PATH",
+                   help="Image to print on card backs (enables duplex back pages in PDF)")
     args = p.parse_args()
     if args.card_size is None:
         args.card_size = int(args.card_diameter_inches * args.dpi)
@@ -93,7 +95,7 @@ def _compute_mask_and_bbox(img: Image.Image):
 
 def load_all_symbols(folder: Path) -> list:
     """Return list of (RGBA_image, bbox) for all 57 symbols."""
-    exts = {".png", ".svg"}
+    exts = {".png", ".svg", ".jpg", ".jpeg"}
     files = sorted(f for f in folder.iterdir() if f.suffix.lower() in exts)
     if len(files) != 57:
         sys.exit(f"Expected 57 images in {folder!s}, found {len(files)}")
@@ -346,8 +348,9 @@ def save_card_pngs(cards: list, output_dir: Path):
 
 
 def save_pdf(cards: list, output_dir: Path,
-             card_diameter_inches: float, dpi: int):
-    page_w, page_h = letter          # 612 × 792 pt
+             card_diameter_inches: float, dpi: int,
+             back_img: "Image.Image | None" = None):
+    page_w, page_h = letter          # 612 x 792 pt
     margin     = 0.5   * inch
     gutter     = 0.25  * inch
     card_pt    = card_diameter_inches * inch
@@ -367,40 +370,63 @@ def save_pdf(cards: list, output_dir: Path,
     def _crop_marks(card_x, card_y):
         c.setStrokeColorRGB(0x88 / 255, 0x88 / 255, 0x88 / 255)
         c.setLineWidth(0.5)
-        # (corner_x, corner_y, h_direction, v_direction)
         corners = [
-            (card_x,           card_y + card_pt, -1,  1),  # top-left
-            (card_x + card_pt, card_y + card_pt,  1,  1),  # top-right
-            (card_x,           card_y,            -1, -1),  # bottom-left
-            (card_x + card_pt, card_y,             1, -1),  # bottom-right
+            (card_x,           card_y + card_pt, -1,  1),
+            (card_x + card_pt, card_y + card_pt,  1,  1),
+            (card_x,           card_y,            -1, -1),
+            (card_x + card_pt, card_y,             1, -1),
         ]
         for cx_, cy_, hdx, vdy in corners:
             c.line(cx_, cy_, cx_ + hdx * crop_len, cy_)
             c.line(cx_, cy_, cx_, cy_ + vdy * crop_len)
 
+    # Pre-render back image to a reusable ImageReader (same image every cell).
+    # Flatten alpha onto white so transparent pixels don't render black in PDF.
+    back_reader = None
+    if back_img is not None:
+        flat = Image.new("RGB", back_img.size, (255, 255, 255))
+        if back_img.mode == "RGBA":
+            flat.paste(back_img, mask=back_img.split()[3])
+        else:
+            flat.paste(back_img.convert("RGB"))
+        buf_back = io.BytesIO()
+        flat.save(buf_back, format="PNG")
+        buf_back.seek(0)
+        back_reader = ImageReader(buf_back)
+
     idx = 0
     while idx < len(cards):
+        # ── Front page ────────────────────────────────────────────────────────
+        page_positions = []
         for row in range(rows):
             for col in range(cols):
                 if idx >= len(cards):
                     break
                 card_x = x0 + col * (card_pt + gutter)
-                # PDF y=0 at bottom; row 0 is visually top → flip
                 card_y = y0 + (rows - 1 - row) * (card_pt + gutter)
-
                 buf = io.BytesIO()
                 cards[idx].save(buf, format="PNG")
                 buf.seek(0)
                 c.drawImage(ImageReader(buf), card_x, card_y,
                             width=card_pt, height=card_pt)
                 _crop_marks(card_x, card_y)
+                page_positions.append((card_x, card_y))
                 idx += 1
+
+        # ── Back page (interleaved for duplex) ────────────────────────────────
+        if back_reader is not None:
+            c.showPage()
+            for card_x, card_y in page_positions:
+                c.drawImage(back_reader, card_x, card_y,
+                            width=card_pt, height=card_pt)
+                _crop_marks(card_x, card_y)
 
         if idx < len(cards):
             c.showPage()
 
     c.save()
-    print(f"  Saved deck.pdf  ({cols}×{rows} grid, {cols * rows} cards/page)")
+    back_note = " (with back pages)" if back_reader else ""
+    print(f"  Saved deck.pdf  ({cols}x{rows} grid, {cols * rows} cards/page{back_note})")
 
 
 def save_verify(deck: list, output_dir: Path):
@@ -476,13 +502,25 @@ def main():
         if (i + 1) % 11 == 0 or i == 54:
             print(f"  {i + 1}/55 cards rendered", flush=True)
 
-    print("Step 5: Saving output...")
+    back_img = None
+    if args.back_image:
+        back_path = Path(args.back_image)
+        if not back_path.is_file():
+            sys.exit(f"Back image not found: {back_path}")
+        raw = Image.open(back_path).convert("RGBA")
+        if raw.size != (args.card_size, args.card_size):
+            raw = raw.resize((args.card_size, args.card_size), Image.LANCZOS)
+        back_img = raw
+        print(f"Step 5: Saving output (back image: {back_path.name})...")
+    else:
+        print("Step 5: Saving output...")
+
     save_card_pngs(cards, output_dir)
-    save_pdf(cards, output_dir, args.card_diameter_inches, args.dpi)
+    save_pdf(cards, output_dir, args.card_diameter_inches, args.dpi, back_img)
     save_verify(deck, output_dir)
 
-    print(f"\nDone.  {len(cards)} cards → {output_dir}/")
-    print(f"  Card size: {args.card_size}×{args.card_size} px  "
+    print(f"\nDone.  {len(cards)} cards -> {output_dir}/")
+    print(f"  Card size: {args.card_size}x{args.card_size} px  "
           f"({args.card_diameter_inches}\" @ {args.dpi} DPI)")
 
 
